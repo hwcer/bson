@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"time"
 
+	mongobson "go.mongodb.org/mongo-driver/bson"
 	"go.mongodb.org/mongo-driver/bson/bsoncodec"
 	"go.mongodb.org/mongo-driver/bson/bsonrw"
 	"go.mongodb.org/mongo-driver/bson/bsontype"
@@ -50,7 +51,7 @@ func (rv RawValue) IsZero() bool {
 func (rv RawValue) Unmarshal(val interface{}) error {
 	reg := rv.r
 	if reg == nil {
-		reg = DefaultRegistry
+		reg = mongobson.DefaultRegistry
 	}
 	return rv.UnmarshalWithRegistry(reg, val)
 }

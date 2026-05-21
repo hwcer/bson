@@ -11,14 +11,16 @@ import (
 type Document map[string]*Element
 
 func (doc Document) Type() Type {
-	return EmbeddedDocument
+	return TypeEmbeddedDocument
 }
 
 func (doc Document) Len() (r int) {
 	r += 5 //size(int32) + 0x00
 	for k, ele := range doc {
 		r += len(k) + 2
-		r += ele.Len()
+		if ele != nil {
+			r += ele.Len()
+		}
 	}
 	return
 }
@@ -155,6 +157,9 @@ func (doc Document) Reset(val []byte) (err error) {
 	if err != nil {
 		return err
 	}
+	for k := range doc {
+		delete(doc, k)
+	}
 	for _, v := range arr {
 		var ele *Element
 		if ele, err = NewElementFromValue(v.Value()); err != nil {
@@ -186,7 +191,7 @@ func (doc Document) loadOrCreate(key string) (r *Element, loaded bool) {
 	k1, k2 := Split(key)
 	r, loaded = doc[k1]
 	if !loaded {
-		r, _ = NewElement(bson.TypeNull, nil)
+		r, _ = NewElement(TypeNull, nil)
 		doc[k1] = r
 	}
 	if k2 == "" {
@@ -194,7 +199,7 @@ func (doc Document) loadOrCreate(key string) (r *Element, loaded bool) {
 	}
 
 	if !loaded {
-		r.t = bson.TypeEmbeddedDocument
+		r.t = TypeEmbeddedDocument
 	}
 	return r.loadOrCreate(k2)
 }

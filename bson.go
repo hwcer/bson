@@ -4,29 +4,25 @@ import (
 	"strings"
 
 	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/bsontype"
 	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
-type BSON interface {
-}
-
-func New() BSON {
+func New() Document {
 	return Document{}
 }
 
-func NewArray() *Array {
-	return &Array{}
+func NewArray() Array {
+	return Array{}
 }
 
-func NewElement(t bsontype.Type, v []byte) (r *Element, err error) {
+func NewElement(t Type, v []byte) (r *Element, err error) {
 	r = &Element{}
 	err = r.Reset(t, v)
 	return
 }
 
 func NewElementFromValue(v bsoncore.Value) (r *Element, err error) {
-	return NewElement(v.Type, v.Data)
+	return NewElement(Type(v.Type), v.Data)
 }
 
 //func NewArrayElement(key string) *Element {

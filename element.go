@@ -8,6 +8,7 @@ import (
 	"strconv"
 
 	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/bson/bsontype"
 )
 
 type Element struct {
@@ -28,7 +29,7 @@ func (ele *Element) Len() int {
 	}
 }
 func (ele *Element) IsNil() bool {
-	return ele.t == 0 || ele.v == TypeNull
+	return ele.t == 0 || ele.t == TypeNull
 }
 
 func (ele *Element) Type() Type {
@@ -116,36 +117,53 @@ func (ele *Element) GetBool() (r bool) {
 }
 
 func (ele *Element) GetInt32() (r int32) {
-	if !ele.IsNumber() {
+	switch ele.t {
+	case TypeInt32:
+		return int32(binary.LittleEndian.Uint32(ele.v.([]byte)))
+	case TypeInt64:
+		return int32(binary.LittleEndian.Uint64(ele.v.([]byte)))
+	case TypeDouble:
+		return int32(math.Float64frombits(binary.LittleEndian.Uint64(ele.v.([]byte))))
+	default:
 		return 0
 	}
-	return int32(binary.LittleEndian.Uint32(ele.v.([]byte)))
 }
 
 func (ele *Element) GetInt64() int64 {
-	if !ele.IsNumber() {
+	switch ele.t {
+	case TypeInt64:
+		return int64(binary.LittleEndian.Uint64(ele.v.([]byte)))
+	case TypeInt32:
+		return int64(int32(binary.LittleEndian.Uint32(ele.v.([]byte))))
+	case TypeDouble:
+		return int64(math.Float64frombits(binary.LittleEndian.Uint64(ele.v.([]byte))))
+	default:
 		return 0
 	}
-	return int64(binary.LittleEndian.Uint64(ele.v.([]byte)))
 }
 
 func (ele *Element) GetFloat() float64 {
-	if !ele.IsNumber() {
+	switch ele.t {
+	case TypeDouble:
+		return math.Float64frombits(binary.LittleEndian.Uint64(ele.v.([]byte)))
+	case TypeInt32:
+		return float64(int32(binary.LittleEndian.Uint32(ele.v.([]byte))))
+	case TypeInt64:
+		return float64(int64(binary.LittleEndian.Uint64(ele.v.([]byte))))
+	default:
 		return 0
 	}
-	v := ele.GetInt64()
-	if v == 0 {
-		return 0
-	}
-	return math.Float64frombits(uint64(v))
 }
 
 func (ele *Element) GetString() string {
 	if ele.t != TypeString {
 		return ""
 	}
-	b := ele.v.([]byte)
-	return string(b)
+	s, _, ok := readstring(ele.v.([]byte))
+	if !ok {
+		return ""
+	}
+	return s
 }
 
 func (ele *Element) String() string {
@@ -269,9 +287,11 @@ func (ele *Element) Raw(dst []byte, keys ...string) []byte {
 func (ele *Element) Value() Value {
 	switch ele.t {
 	case TypeArray:
-		return ele.getOrCreateArr().Value()
+		v := ele.getOrCreateArr().Value()
+		return Value{Type: Type(v.Type), Data: v.Data}
 	case TypeEmbeddedDocument:
-		return ele.getOrCreateDoc().Value()
+		v := ele.getOrCreateDoc().Value()
+		return Value{Type: Type(v.Type), Data: v.Data}
 	default:
 		return Value{Type: ele.t, Data: ele.v.([]byte)}
 	}
@@ -295,17 +315,17 @@ func (ele *Element) Marshal(i interface{}) error {
 	if err != nil {
 		return err
 	}
-	return ele.Reset(t, b)
+	return ele.Reset(Type(t), b)
 }
 
 func (ele *Element) Unmarshal(i interface{}) (err error) {
 	switch ele.t {
-	case bson.TypeArray:
+	case TypeArray:
 		return ele.getOrCreateArr().Unmarshal(i)
-	case bson.TypeEmbeddedDocument:
+	case TypeEmbeddedDocument:
 		return ele.getOrCreateDoc().Unmarshal(i)
 	default:
-		raw := bson.RawValue{Value: ele.v.([]byte), Type: ele.t}
+		raw := bson.RawValue{Value: ele.v.([]byte), Type: bsontype.Type(ele.t)}
 		return raw.Unmarshal(i)
 	}
 }

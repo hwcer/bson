@@ -1,17 +1,17 @@
 package bson
 
 import (
-	"go.mongodb.org/mongo-driver/bson"
-	"go.mongodb.org/mongo-driver/bson/bsontype"
-	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 	"strconv"
 	"strings"
+
+	"go.mongodb.org/mongo-driver/bson"
+	"go.mongodb.org/mongo-driver/x/bsonx/bsoncore"
 )
 
 type Array map[string]*Element
 
-func (arr Array) Type() bsontype.Type {
-	return bson.TypeArray
+func (arr Array) Type() Type {
+	return TypeArray
 }
 
 func (arr Array) Len() (r int) {
@@ -115,6 +115,9 @@ func (arr Array) Reset(v []byte) error {
 		return err
 	}
 
+	for k := range arr {
+		delete(arr, k)
+	}
 	for i, value := range values {
 		var ele *Element
 		if ele, err = NewElementFromValue(value); err != nil {
@@ -148,9 +151,9 @@ func (arr Array) Unmarshal(i interface{}) error {
 var ArrayAppendLimit = 100
 
 func (arr Array) append(k string) {
-	i, _ := strconv.Atoi(k)
+	i, err := strconv.Atoi(k)
 	l := len(arr)
-	if i == 0 || i < l {
+	if err != nil || i <= l {
 		return
 	}
 	if i-l > ArrayAppendLimit {
@@ -158,7 +161,7 @@ func (arr Array) append(k string) {
 	}
 	for j := l; j <= i; j++ {
 		s := strconv.Itoa(j)
-		arr[s], _ = NewElement(bson.TypeNull, nil)
+		arr[s], _ = NewElement(TypeNull, nil)
 	}
 }
 
@@ -176,7 +179,7 @@ func (arr Array) loadOrCreate(key string) (r *Element, loaded bool) {
 	}
 
 	if !loaded {
-		r.t = bson.TypeEmbeddedDocument
+		r.t = TypeEmbeddedDocument
 	}
 	return r.loadOrCreate(k2)
 }
